@@ -1,0 +1,23 @@
+{
+  "name": "homebridge-zipato",
+  "version": "0.0.1",
+  "description": "Zipato plugin for homebridge: https://github.com/lrozema/homebridge-zipato",
+  "license": "ISC",
+  "keywords": [
+    "homebridge-plugin"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/lrozema/homebridge-zipato.git"
+  },
+  "bugs": {
+    "url": "http://github.com/lrozema/homebridge-zipato/issues"
+  },
+  "engines": {
+    "node": ">=0.12.0",
+    "homebridge": ">=0.2.0"
+  },
+  "dependencies": {
+    "request": "^2.65.0"
+  }
+}
