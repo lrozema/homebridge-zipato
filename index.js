@@ -110,7 +110,7 @@ ZipatoPlatform.prototype.addAccessory = function(displayName, uuid) {
 
 	var newAccessory = new Accessory(displayName, uuid);
 
-  newAccessory.addService(Service.Lightbulb, displayName);
+	newAccessory.addService(Service.Lightbulb, displayName);
 
 	this.configureAccessory(newAccessory);
 
