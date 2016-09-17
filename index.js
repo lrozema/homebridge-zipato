@@ -1,6 +1,26 @@
 var zipabox = require("zipabox");
 var Accessory, Service, Characteristic, platform;
 
+'use strict';
+
+var Categories = {
+	OTHER: 1,
+	BRIDGE: 2,
+	FAN: 3,
+	GARAGE_DOOR_OPENER: 4,
+	LIGHTBULB: 5,
+	DOOR_LOCK: 6,
+	OUTLET: 7,
+	SWITCH: 8,
+	THERMOSTAT: 9,
+	SENSOR: 10,
+	ALARM_SYSTEM: 11,
+	DOOR: 12,
+	WINDOW: 13,
+	WINDOW_COVERING: 14,
+	PROGRAMMABLE_SWITCH: 15
+}
+
 module.exports = function(homebridge) {
 	console.log("homebridge API version: " + homebridge.version);
 
@@ -29,13 +49,17 @@ zipabox.events.OnAfterLoadDevices = function() {
 
 	platform.log("Lights");	
 	zipabox.ForEachModuleInDevice("lights", function(uuid, module){
-		//if(typeof module.attributes[11] !== 'undefined') {
 		if(typeof module.attributes[8] !== 'undefined') {
-			platform.log(uuid);
-			platform.log(module.name);
-
-			platform.addAccessory(module.name, uuid);
+			platform.addAccessory(Service.Lightbulb, module, uuid);
 		}
+		else if(typeof module.attributes[11] !== 'undefined') {
+			platform.addAccessory(Service.Switch, module, uuid);
+		}
+	});
+
+	platform.log("Scenes");	
+	zipabox.ForEachModuleInDevice("scenes", function(uuid, module){
+		platform.addAccessory(Service.Switch, module, uuid);
 	});
 }
 
@@ -81,12 +105,41 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 		callback();
 	});
 
+	if (accessory.getService(Service.Switch)) {
+		accessory.getService(Service.Switch)
+			.getCharacteristic(Characteristic.On)
+			.on('set', function(value, callback) {
+				if(accessory.module.uri_run === undefined) {
+					zipabox.SetDeviceValue(accessory.UUID, 11, !!value,
+							function(msg) {
+								callback();
+							},
+							function(err) {
+								callback(err);
+							}
+						);
+				} else {
+					zipabox.RunScene(accessory.UUID,
+							function(msg) {
+								callback();
+							},
+							function(err) {
+								callback(err);
+							}
+						);
+				}
+			});
+	}
+
 	if (accessory.getService(Service.Lightbulb)) {
 		accessory.getService(Service.Lightbulb)
 			.getCharacteristic(Characteristic.On)
 			.on('set', function(value, callback) {
-				platform.log(accessory.displayName, "Light -> " + value);
-				zipabox.SetDeviceValue(accessory.UUID, 8, value * 100,
+				// In case we are switching on but the brightness is zero we go all in
+				if(value && !accessory.brightness) accessory.brightness = 100;
+
+				// Use the brightness to switch between states
+				zipabox.SetDeviceValue(accessory.UUID, 8, value?accessory.brightness:0,
 						function(msg) {
 							callback();
 						},
@@ -94,23 +147,13 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 							callback(err);
 						}
 					);
-				/*
-				zipabox.SetDeviceValue(accessory.UUID, 11, !!value,
-						function(msg) {
-							callback();
-						},
-						function(err) {
-							callback(err);
-						}
-					);
-					*/
 			});
 		accessory.getService(Service.Lightbulb)
-			.addCharacteristic(Characteristic.Brightness)
+			.getCharacteristic(Characteristic.Brightness)
 			.on('set', function(value, callback) {
-				platform.log(accessory.displayName, "Brightness -> " + value);
 				zipabox.SetDeviceValue(accessory.UUID, 8, value,
 						function(msg) {
+							accessory.brightness = value;
 							callback();
 						},
 						function(err) {
@@ -119,25 +162,25 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 					);
 			})
 			.on('get', function(callback) {
-				platform.log(accessory.displayName, "Get Brightness -> 50");
-				callback(50);
+				if(accessory.brightness === undefined) accessory.brightness = 0;
+				callback(accessory.brightness);
 			});
 	}
 
 	this.accessories.push(accessory);
 }
 
-ZipatoPlatform.prototype.addAccessory = function(displayName, uuid) {
+ZipatoPlatform.prototype.addAccessory = function(service, module, uuid) {
 	// Prevent adding the same accessory twice
-	for(var i in this.accessories) if(this.accessories[i].displayName == displayName) return;
+	for(var i in this.accessories) if(this.accessories[i].UUID == uuid) {
+		this.accessories[i].module = module;
+		return;
+	}
 
-	this.log("Add Accessory");
-	this.log(displayName);
-	this.log(uuid);
+	var newAccessory = new Accessory(module.name, uuid); // , Categories.LIGHTBULB);
+	newAccessory.module = module;
 
-	var newAccessory = new Accessory(displayName, uuid);
-
-	newAccessory.addService(Service.Lightbulb, displayName);
+	newAccessory.addService(service, module.name);
 
 	this.configureAccessory(newAccessory);
 
