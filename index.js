@@ -26,12 +26,11 @@ zipabox.events.OnAfterLoadDevice = function(device) {
 
 zipabox.events.OnAfterLoadDevices = function() {
 	platform.log("OnAfterLoadDevices");	
-	platform.addAccessory("Test");
 
 	platform.log("Lights");	
 	zipabox.ForEachModuleInDevice("lights", function(uuid, module){
-
-		if(typeof module.attributes[11] !== 'undefined') {
+		//if(typeof module.attributes[11] !== 'undefined') {
+		if(typeof module.attributes[8] !== 'undefined') {
 			platform.log(uuid);
 			platform.log(module.name);
 
@@ -86,8 +85,16 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 		accessory.getService(Service.Lightbulb)
 			.getCharacteristic(Characteristic.On)
 			.on('set', function(value, callback) {
-				platform.log(accessory);
 				platform.log(accessory.displayName, "Light -> " + value);
+				zipabox.SetDeviceValue(accessory.UUID, 8, value * 100,
+						function(msg) {
+							callback();
+						},
+						function(err) {
+							callback(err);
+						}
+					);
+				/*
 				zipabox.SetDeviceValue(accessory.UUID, 11, !!value,
 						function(msg) {
 							callback();
@@ -96,6 +103,24 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 							callback(err);
 						}
 					);
+					*/
+			});
+		accessory.getService(Service.Lightbulb)
+			.addCharacteristic(Characteristic.Brightness)
+			.on('set', function(value, callback) {
+				platform.log(accessory.displayName, "Brightness -> " + value);
+				zipabox.SetDeviceValue(accessory.UUID, 8, value,
+						function(msg) {
+							callback();
+						},
+						function(err) {
+							callback(err);
+						}
+					);
+			})
+			.on('get', function(callback) {
+				platform.log(accessory.displayName, "Get Brightness -> 50");
+				callback(50);
 			});
 	}
 
@@ -107,6 +132,8 @@ ZipatoPlatform.prototype.addAccessory = function(displayName, uuid) {
 	for(var i in this.accessories) if(this.accessories[i].displayName == displayName) return;
 
 	this.log("Add Accessory");
+	this.log(displayName);
+	this.log(uuid);
 
 	var newAccessory = new Accessory(displayName, uuid);
 
