@@ -180,10 +180,21 @@ ZipatoPlatform.prototype.addAccessory = function(service, module, uuid) {
 		return;
 	}
 
-	var newAccessory = new Accessory(module.name, uuid);
+	// Apply replace configuration onto module name
+	var name = module.name;
+	if(this.config["replace"] !== undefined) {
+		for(var key in this.config["replace"]) {
+			platform.log(key);
+			platform.log(name);
+			name = name.replace(key, this.config["replace"][key]);
+			platform.log(name);
+		}
+	}
+
+	var newAccessory = new Accessory(name, uuid);
 
 	// Setup the initial service that we want to use for this accessory
-	newAccessory.addService(service, module.name);
+	newAccessory.addService(service, name);
 
 	// Configure the accessory (this sets up all the relevant callbacks
 	this.configureAccessory(newAccessory);
