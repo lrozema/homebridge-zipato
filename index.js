@@ -3,6 +3,9 @@ var Accessory, Service, Characteristic, platform;
 
 'use strict';
 
+var ZIPATO_HSLIDER = 8
+var ZIPATO_SWITCH = 11
+
 module.exports = function(homebridge) {
 	console.log("homebridge API version: " + homebridge.version);
 
@@ -31,10 +34,10 @@ zipabox.events.OnAfterLoadDevices = function() {
 
 	platform.log("Lights");	
 	zipabox.ForEachModuleInDevice("lights", function(uuid, module){
-		if(typeof module.attributes[8] !== 'undefined') {
+		if(typeof module.attributes[ZIPATO_HSLIDER] !== 'undefined') {
 			platform.addAccessory(Service.Lightbulb, module, uuid);
 		}
-		else if(typeof module.attributes[11] !== 'undefined') {
+		else if(typeof module.attributes[ZIPATO_SWITCH] !== 'undefined') {
 			platform.addAccessory(Service.Switch, module, uuid);
 		}
 	});
@@ -85,12 +88,11 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 	});
 
 	if (accessory.getService(Service.Switch)) {
-		// FIXME: change 11 and 8 to the right ENUM
 		accessory.getService(Service.Switch).getCharacteristic(Characteristic.On)
 			.on('set', function(value, callback) {
 				if(! accessory.isScene) {
 					// Simply switch the device (convert 0/1 to false/true)
-					zipabox.SetDeviceValue(accessory.UUID, 11, !!value,
+					zipabox.SetDeviceValue(accessory.UUID, ZIPATO_SWITCH, !!value,
 							function(msg) {
 								callback();
 							},
@@ -129,7 +131,7 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 				if(value && !accessory.brightness) accessory.brightness = 100;
 
 				// Use the brightness to switch between states
-				zipabox.SetDeviceValue(accessory.UUID, 8, value?accessory.brightness:0,
+				zipabox.SetDeviceValue(accessory.UUID, ZIPATO_HSLIDER, value?accessory.brightness:0,
 						function(msg) {
 							callback();
 						},
@@ -140,7 +142,7 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 		accessory.getService(Service.Lightbulb)
 			.getCharacteristic(Characteristic.Brightness)
 			.on('set', function(value, callback) {
-				zipabox.SetDeviceValue(accessory.UUID, 8, value,
+				zipabox.SetDeviceValue(accessory.UUID, ZIPATO_HSLIDER, value,
 						function(msg) {
 							accessory.brightness = value;
 							callback();
