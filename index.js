@@ -74,23 +74,22 @@ function ZipatoPlatform(log, config, api) {
 // Developer can configure accessory at here (like setup event handler)
 // Update current value
 ZipatoPlatform.prototype.configureAccessory = function(accessory) {
-	this.log(accessory.displayName, "Configure Accessory");
-	var platform = this;
+	platform.log(accessory.displayName, "Configure Accessory");
 
 	// By default the accessory is not reachable, updated once Zipato is reachable
 	accessory.reachable = false;
 
 	accessory.on('identify', function(paired, callback) {
-		platform.log(accessory.displayName, "Identify!!!");
+		platform.log(accessory.displayName, "Identify");
 		callback();
 	});
 
 	if (accessory.getService(Service.Switch)) {
 		// FIXME: change 11 and 8 to the right ENUM
-		accessory.getService(Service.Switch)
-			.getCharacteristic(Characteristic.On)
+		accessory.getService(Service.Switch).getCharacteristic(Characteristic.On)
 			.on('set', function(value, callback) {
 				if(! accessory.isScene) {
+					// Simply switch the device (convert 0/1 to false/true)
 					zipabox.SetDeviceValue(accessory.UUID, 11, !!value,
 							function(msg) {
 								callback();
@@ -105,23 +104,17 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 						return;
 					}
 
-					platform.log("Scene!");
-
-					// Automatically turn back off after 1 second
-					setTimeout(function() {
-						accessory.getService(Service.Switch).setCharacteristic(Characteristic.On, false);
-					}.bind(this), 1000);
-
-					platform.log(accessory.displayName);
-
 					// Run the actual scene
 					zipabox.RunUnLoadedScene(accessory.UUID,
 							function(msg) {
-								platform.log("Ok!");
 								callback();
+
+								// Automatically turn back off after half a second
+								setTimeout(function() {
+									accessory.getService(Service.Switch).setCharacteristic(Characteristic.On, 0);
+								}, 500);
 							},
 							function(err) {
-								platform.log("Error!");
 								callback(err);
 							});
 				}
