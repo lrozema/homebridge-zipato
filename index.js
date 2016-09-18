@@ -77,10 +77,8 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 	this.log(accessory.displayName, "Configure Accessory");
 	var platform = this;
 
-	// set the accessory to reachable if plugin can currently process the accessory
-	// otherwise set to false and update the reachability later by invoking 
-	// accessory.updateReachability()
-	accessory.reachable = true; // false;
+	// By default the accessory is not reachable, updated once Zipato is reachable
+	accessory.reachable = false;
 
 	accessory.on('identify', function(paired, callback) {
 		platform.log(accessory.displayName, "Identify!!!");
@@ -89,26 +87,34 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 
 	if (accessory.getService(Service.Switch)) {
 		// FIXME: change 11 and 8 to the right ENUM
-		// When uri_run is defined it is a Scene, otherwise a regular Switch
-		if(! accessory.isScene) {
-			accessory.getService(Service.Switch)
-				.getCharacteristic(Characteristic.On)
-				.on('set', function(value, callback) {
+		accessory.getService(Service.Switch)
+			.getCharacteristic(Characteristic.On)
+			.on('set', function(value, callback) {
+				if(! accessory.isScene) {
 					zipabox.SetDeviceValue(accessory.UUID, 11, !!value,
 							function(msg) {
 								callback();
 							},
 							function(err) {
 								callback(err);
-							}
-							);
-				});
-		} else {
-			accessory.getService(Service.Switch)
-				.getCharacteristic(Characteristic.On)
-				.on('set', function(value, callback) {
+							});
+				} else {
+					// Only run a scene when it is turned on
+					if (!value) {
+						callback();
+						return;
+					}
+
 					platform.log("Scene!");
+
+					// Automatically turn back off after 1 second
+					setTimeout(function() {
+						accessory.getService(Service.Switch).setCharacteristic(Characteristic.On, false);
+					}.bind(this), 1000);
+
 					platform.log(accessory.displayName);
+
+					// Run the actual scene
 					zipabox.RunUnLoadedScene(accessory.UUID,
 							function(msg) {
 								platform.log("Ok!");
@@ -117,13 +123,9 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 							function(err) {
 								platform.log("Error!");
 								callback(err);
-							}
-							);
-				})
-				.on('get', function(callback) {
-					callback(0);
-				});
-		}
+							});
+				}
+			});
 	}
 
 	if (accessory.getService(Service.Lightbulb)) {
@@ -140,8 +142,7 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 						},
 						function(err) {
 							callback(err);
-						}
-						);
+						});
 			});
 		accessory.getService(Service.Lightbulb)
 			.getCharacteristic(Characteristic.Brightness)
@@ -153,8 +154,7 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 						},
 						function(err) {
 							callback(err);
-						}
-						);
+						});
 			})
 			.on('get', function(callback) {
 				if(accessory.brightness === undefined) accessory.brightness = 0;
@@ -165,21 +165,31 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 	this.accessories.push(accessory);
 }
 
+ZipatoPlatform.prototype.updateAccessory = function(accessory, module) {
+	// Used to detect if this is a scene
+	accessory.isScene = (module.uri_run !== undefined);
+
+	// Consider the accessory reachable since Zipato still has it
+	accessory.updateReachability(true);
+}
+
 ZipatoPlatform.prototype.addAccessory = function(service, module, uuid) {
 	// Prevent adding the same accessory twice
 	for(var i in this.accessories) if(this.accessories[i].UUID == uuid) {
-		this.accessories[i].module = module;
+		this.updateAccessory(this.accessories[i], module);
 		return;
 	}
 
 	var newAccessory = new Accessory(module.name, uuid);
 
-	// Used to detect if this is a scene
-	newAccessory.isScene = (module.uri_run !== undefined);
-
+	// Setup the initial service that we want to use for this accessory
 	newAccessory.addService(service, module.name);
 
+	// Configure the accessory (this sets up all the relevant callbacks
 	this.configureAccessory(newAccessory);
+
+	// A new accessory is created by Zipato so always reachable
+	this.updateAccessory(newAccessory, module);
 
 	this.api.registerPlatformAccessories("homebridge-zipato", "Zipato", [newAccessory]);
 }
