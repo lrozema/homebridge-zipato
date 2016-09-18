@@ -3,24 +3,6 @@ var Accessory, Service, Characteristic, platform;
 
 'use strict';
 
-var Categories = {
-	OTHER: 1,
-	BRIDGE: 2,
-	FAN: 3,
-	GARAGE_DOOR_OPENER: 4,
-	LIGHTBULB: 5,
-	DOOR_LOCK: 6,
-	OUTLET: 7,
-	SWITCH: 8,
-	THERMOSTAT: 9,
-	SENSOR: 10,
-	ALARM_SYSTEM: 11,
-	DOOR: 12,
-	WINDOW: 13,
-	WINDOW_COVERING: 14,
-	PROGRAMMABLE_SWITCH: 15
-}
-
 module.exports = function(homebridge) {
 	console.log("homebridge API version: " + homebridge.version);
 
@@ -98,7 +80,7 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 	// set the accessory to reachable if plugin can currently process the accessory
 	// otherwise set to false and update the reachability later by invoking 
 	// accessory.updateReachability()
-	accessory.reachable = false;
+	accessory.reachable = true; // false;
 
 	accessory.on('identify', function(paired, callback) {
 		platform.log(accessory.displayName, "Identify!!!");
@@ -106,10 +88,12 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 	});
 
 	if (accessory.getService(Service.Switch)) {
-		accessory.getService(Service.Switch)
-			.getCharacteristic(Characteristic.On)
-			.on('set', function(value, callback) {
-				if(accessory.module.uri_run === undefined) {
+		// FIXME: change 11 and 8 to the right ENUM
+		// When uri_run is defined it is a Scene, otherwise a regular Switch
+		if(! accessory.isScene) {
+			accessory.getService(Service.Switch)
+				.getCharacteristic(Characteristic.On)
+				.on('set', function(value, callback) {
 					zipabox.SetDeviceValue(accessory.UUID, 11, !!value,
 							function(msg) {
 								callback();
@@ -117,18 +101,29 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 							function(err) {
 								callback(err);
 							}
-						);
-				} else {
-					zipabox.RunScene(accessory.UUID,
+							);
+				});
+		} else {
+			accessory.getService(Service.Switch)
+				.getCharacteristic(Characteristic.On)
+				.on('set', function(value, callback) {
+					platform.log("Scene!");
+					platform.log(accessory.displayName);
+					zipabox.RunUnLoadedScene(accessory.UUID,
 							function(msg) {
+								platform.log("Ok!");
 								callback();
 							},
 							function(err) {
+								platform.log("Error!");
 								callback(err);
 							}
-						);
-				}
-			});
+							);
+				})
+				.on('get', function(callback) {
+					callback(0);
+				});
+		}
 	}
 
 	if (accessory.getService(Service.Lightbulb)) {
@@ -146,7 +141,7 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 						function(err) {
 							callback(err);
 						}
-					);
+						);
 			});
 		accessory.getService(Service.Lightbulb)
 			.getCharacteristic(Characteristic.Brightness)
@@ -159,7 +154,7 @@ ZipatoPlatform.prototype.configureAccessory = function(accessory) {
 						function(err) {
 							callback(err);
 						}
-					);
+						);
 			})
 			.on('get', function(callback) {
 				if(accessory.brightness === undefined) accessory.brightness = 0;
@@ -177,8 +172,10 @@ ZipatoPlatform.prototype.addAccessory = function(service, module, uuid) {
 		return;
 	}
 
-	var newAccessory = new Accessory(module.name, uuid); // , Categories.LIGHTBULB);
-	newAccessory.module = module;
+	var newAccessory = new Accessory(module.name, uuid);
+
+	// Used to detect if this is a scene
+	newAccessory.isScene = (module.uri_run !== undefined);
 
 	newAccessory.addService(service, module.name);
 
