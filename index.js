@@ -32,24 +32,19 @@ zipabox.events.OnAfterLoadDevice = function(device) {
 zipabox.events.OnAfterLoadDevices = function() {
 	platform.log("OnAfterLoadDevices");	
 
-	if(platform.config["groups"].indexOf("lights") >= 0) {
-		platform.log("Lights");
-		zipabox.ForEachModuleInDevice("lights", function(uuid, module){
-			if(typeof module.attributes[ZIPATO_HSLIDER] !== 'undefined') {
-				platform.addAccessory(Service.Lightbulb, module, uuid);
-			}
-			else if(typeof module.attributes[ZIPATO_SWITCH] !== 'undefined') {
-				platform.addAccessory(Service.Switch, module, uuid);
-			}
-		});
-	}
-
-	if(platform.config["groups"].indexOf("scenes") >= 0) {
-		platform.log("Scenes");
-		zipabox.ForEachModuleInDevice("scenes", function(uuid, module){
-			platform.addAccessory(Service.Switch, module, uuid);
-		});
-	}
+	zipabox.ForEachDevice(function(device) {
+		if(platform.config["devices"].indexOf(device.name) >= 0) {
+			platform.log(device.name);
+			zipabox.ForEachModuleInDevice(device.name, function(uuid, module){
+				if(module.attributes !== undefined && typeof module.attributes[ZIPATO_HSLIDER] !== 'undefined') {
+					platform.addAccessory(Service.Lightbulb, module, uuid);
+				}
+				else if(device.name == "scenes" || typeof module.attributes[ZIPATO_SWITCH] !== 'undefined') {
+					platform.addAccessory(Service.Switch, module, uuid);
+				}
+			});
+		}
+	});
 }
 
 function ZipatoPlatform(log, config, api) {
