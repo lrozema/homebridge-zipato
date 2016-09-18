@@ -32,18 +32,24 @@ zipabox.events.OnAfterLoadDevice = function(device) {
 zipabox.events.OnAfterLoadDevices = function() {
 	platform.log("OnAfterLoadDevices");	
 
+	// Iterate over all Zipato devices (actually module groups)
 	zipabox.ForEachDevice(function(device) {
-		if(platform.config["devices"].indexOf(device.name) >= 0) {
-			platform.log(device.name);
-			zipabox.ForEachModuleInDevice(device.name, function(uuid, module){
-				if(module.attributes !== undefined && typeof module.attributes[ZIPATO_HSLIDER] !== 'undefined') {
-					platform.addAccessory(Service.Lightbulb, module, uuid);
-				}
-				else if(device.name == "scenes" || typeof module.attributes[ZIPATO_SWITCH] !== 'undefined') {
-					platform.addAccessory(Service.Switch, module, uuid);
-				}
-			});
-		}
+		// Skip all devices that is not in the configured device list
+		if(platform.config["devices"] !== undefined && platform.config["devices"].indexOf(device.name) < 0) return;
+
+		// Iterate overall Zipato modules within a device (module group)
+		zipabox.ForEachModuleInDevice(device.name, function(uuid, module){
+			// Skip all modules that are in the configured filter list
+			if(platform.config["filters"] !== undefined && platform.config["filters"].indexOf(module.name) >= 0) return;
+
+			// Figure out the best way to have HomeKit handle this Zipato module
+			if(module.attributes !== undefined && typeof module.attributes[ZIPATO_HSLIDER] !== 'undefined') {
+				platform.addAccessory(Service.Lightbulb, module, uuid);
+			}
+			else if(device.name == "scenes" || typeof module.attributes[ZIPATO_SWITCH] !== 'undefined') {
+				platform.addAccessory(Service.Switch, module, uuid);
+			}
+		});
 	});
 }
 
