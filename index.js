@@ -20,8 +20,12 @@ module.exports = function(homebridge) {
 }
 
 zipabox.events.OnAfterConnect = function() {
-	platform.log("OnAfterConnect");	
-	zipabox.LoadDevices();
+	// This hack is needed to make sure we stay connected, as long as we talk to Zipato every X minutes we will stay logged in
+	setTimeout(function() {
+		zipabox.Connect(function() {
+			platform.log("Connect executed successfully again");
+		});
+	}, 15 * 60 * 1000);
 }
 
 zipabox.events.OnAfterLoadDevice = function(device) {
@@ -79,7 +83,12 @@ function ZipatoPlatform(log, config, api) {
 		// Listen to event "didFinishLaunching", this means homebridge already finished loading cached accessories
 		// Platform Plugin should only register new accessory that doesn't exist in homebridge after this event.
 		// Or start discover new accessories
-		this.api.on('didFinishLaunching', zipabox.Connect);
+		this.api.on('didFinishLaunching', function() {
+			zipabox.Connect(function() {
+				platform.log("OnAfterConnect");
+				zipabox.LoadDevices();
+			});
+		});
 	}
 }
 
