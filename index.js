@@ -64,6 +64,11 @@ function ZipatoPlatform(log, config, api) {
 	zipabox.username = config["username"];
 	zipabox.password = config["password"];
 
+	if(config["localip"] !== undefined) {
+		log("Using local IP "+config["localip"]);
+		zipabox.SetLocalIP(config["localip"]);
+	}
+
 	zipabox.showlog = false;
 	zipabox.checkforupdate_auto = true;
 
